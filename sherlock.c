@@ -44,9 +44,17 @@ struct Sig {
     unsigned long* val;
 };
 
+/* sp modification - this struct contains all percents for checking plagiarism */
+typedef struct  s_percents
+{
+    int file1;
+    int file2;
+    int algorithm;
+}               t_percents;
+
 void init_token_array(void);
 Sig* signature(FILE*);
-int compare(Sig*, Sig*);
+void compare(Sig*, Sig*, t_percents *percents);
 int endsWith(char*, char*);
 
 void usage(void)
@@ -134,9 +142,10 @@ void listFiles(const char* name)
 int main(int argc, char* argv[])
 {
     FILE* f;
-    int i, j, start, percent;
+    int i, j, start;
     char *s, *outname;
     Sig** sig;
+    t_percents percents;
 
     Outfile = stdout;
     outname = NULL;
@@ -230,9 +239,9 @@ int main(int argc, char* argv[])
     /* compare each signature pair-wise */
     for (i = 0; i < nfiles; i++)
         for (j = i + 1; j < nfiles; j++) {
-            percent = compare(sig[i], sig[j]);
-            if (percent >= Thresh)
-                fprintf(Outfile, "%s;%s;%d%%\n", filePath[i], filePath[j], percent);
+            compare(sig[i], sig[j], &percents);
+            if (percents.file1 >= Thresh || percents.file2 >= Thresh || percents.algorithm >= Thresh)
+                fprintf(Outfile, "%s,%d%%;%s,%d%%\n", filePath[i], percents.file1, filePath[j], percents.file2);
         }
 
     for (i = 0; i < nfiles; i++) {
@@ -410,7 +419,9 @@ Sig* signature(FILE* f)
     return sig;
 }
 
-int compare(Sig* s0, Sig* s1)
+
+/* sp modification - void function type and third argument for reducing memory allocations inside function */
+void compare(Sig* s0, Sig* s1, t_percents *percents)
 {
     int i0, i1, nboth, nsimilar;
     unsigned long v;
@@ -437,14 +448,17 @@ int compare(Sig* s0, Sig* s1)
             i1++;
     }
 
-    if (s0->nval + s1->nval == 0)
-        return 0; /* ignore if both are empty files */
-
-    if (s0->nval + s1->nval == nboth)
-        return 100; /* perfect match if all hash codes match */
+/* sp modification - function does not return anything now */
+/*    if (s0->nval + s1->nval == 0) */
+/*        return 0; */  /* ignore if both are empty files */
+/*    if (s0->nval + s1->nval == nboth) */
+/*        return 100; */ /* perfect match if all hash codes match */
 
     nsimilar = nboth / 2;
-    return 100 * nsimilar / (s0->nval + s1->nval - nsimilar);
+
+    percents->file1 = 100.0 * nsimilar / s0->nval;
+    percents->file2 = 100.0 * nsimilar / s1->nval;
+    percents->algorithm = 100 * nsimilar / (s0->nval + s1->nval - nsimilar);
 }
 
 /*
